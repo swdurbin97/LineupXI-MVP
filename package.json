@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "build:overrides": "node tools/build-overrides.cjs",
     "validate:tactics": "node tools/validate-tactics.mjs",
     "audit:tactics": "node tools/audit-sanitized-tactics.mjs",
