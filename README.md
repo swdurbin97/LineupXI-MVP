@@ -1,6 +1,9 @@
 # LineupXI Frontend (MVP Build)
 
-This is the React + Vite + Tailwind client for the **LineupLab MVP**.
+![CI](https://github.com/swdurbin97/LineupXI-MVP/actions/workflows/ci.yml/badge.svg)
+[![Vercel](https://img.shields.io/badge/deploy-Vercel-black?logo=vercel)](https://lineup-xi-mvp.vercel.app)
+
+This is the React + Vite + Tailwind client for the **LineupXI MVP**.
 Bolt should work **only inside `frontend/src/`** and follow `/docs/MVP_SCOPE.md`.
 
 ---
@@ -26,3 +29,14 @@ Bolt should work **only inside `frontend/src/`** and follow `/docs/MVP_SCOPE.md`
 ## References
 - `/docs/MVP_SCOPE.md` — scope and priorities
 - `/docs/WORKING_WITH_BOLT.md` — rules of engagement
+
+---
+
+## Links
+
+**Production:** https://lineup-xi-mvp.vercel.app
+**Example Preview:** https://lineup-xi-mvp-git-test-preview-deploy-swdurbin97s-projects.vercel.app
+
+## Deployments
+
+Pull requests automatically generate preview deployments on Vercel. Merges to `main` trigger production deployments.
