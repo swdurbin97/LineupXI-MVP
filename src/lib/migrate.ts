@@ -1,4 +1,33 @@
-import { Lineup } from './types';
+import { Lineup, Team } from './types';
+import { normalizePosition } from './normalizers';
+
+export function migrateTeamPositions(team: Team): Team {
+  const migratedPlayers = team.players.map(player => {
+    const normalizedPrimary = player.primaryPos
+      ? normalizePosition(player.primaryPos)
+      : undefined;
+
+    const normalizedSecondary = player.secondaryPos
+      ? player.secondaryPos
+          .map(pos => normalizePosition(pos))
+          .filter((pos): pos is NonNullable<typeof pos> => pos !== null)
+      : undefined;
+
+    return {
+      ...player,
+      primaryPos: normalizedPrimary || undefined,
+      secondaryPos:
+        normalizedSecondary && normalizedSecondary.length > 0
+          ? normalizedSecondary
+          : undefined,
+    };
+  });
+
+  return {
+    ...team,
+    players: migratedPlayers,
+  };
+}
 
 export function migrateWorkingLineup(raw: any, formationsSeed: any): Lineup | null {
   // If raw is null/undefined → return null

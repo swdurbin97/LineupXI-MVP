@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Team, Player } from '../../lib/types';
 import { useTeamsStore } from '../../store/teams';
+import { POSITION_CODES, POSITION_LABELS, type PositionCode } from '../../data/positions';
 
 interface PlayerTableProps {
   team: Team;
@@ -105,15 +106,24 @@ export default function PlayerTable({ team }: PlayerTableProps) {
   const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const csv = e.target?.result as string;
-      importPlayersCSV(team.id, csv);
+      const result = importPlayersCSV(team.id, csv);
+
+      let message = `Import complete: ${result.summary.imported} player(s) imported`;
+      if (result.summary.normalized > 0) {
+        message += `, ${result.summary.normalized} position(s) normalized`;
+      }
+      if (result.summary.skipped > 0) {
+        message += `, ${result.summary.skipped} row(s) skipped`;
+      }
+
+      alert(message);
     };
     reader.readAsText(file);
-    
-    // Reset input
+
     event.target.value = '';
   };
 
@@ -173,13 +183,18 @@ export default function PlayerTable({ team }: PlayerTableProps) {
               }}
               className="px-2 py-1 border rounded"
             />
-            <input
-              type="text"
-              placeholder="Position (e.g., CM)"
-              value={formData.primaryPos}
+            <select
+              value={formData.primaryPos || ''}
               onChange={(e) => setFormData({ ...formData, primaryPos: e.target.value })}
               className="px-2 py-1 border rounded"
-            />
+            >
+              <option value="">Select Position</option>
+              {POSITION_CODES.map((code) => (
+                <option key={code} value={code}>
+                  {code} - {POSITION_LABELS[code]}
+                </option>
+              ))}
+            </select>
             <select
               value={formData.foot}
               onChange={(e) => setFormData({ ...formData, foot: e.target.value as 'L' | 'R' | 'B' })}
@@ -249,12 +264,18 @@ export default function PlayerTable({ team }: PlayerTableProps) {
                         />
                       </td>
                       <td className="py-2 px-2">
-                        <input
-                          type="text"
-                          value={formData.primaryPos}
+                        <select
+                          value={formData.primaryPos || ''}
                           onChange={(e) => setFormData({ ...formData, primaryPos: e.target.value })}
-                          className="w-20 px-1 py-0.5 border rounded"
-                        />
+                          className="w-32 px-1 py-0.5 border rounded"
+                        >
+                          <option value="">-</option>
+                          {POSITION_CODES.map((code) => (
+                            <option key={code} value={code}>
+                              {code}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="py-2 px-2">
                         <select

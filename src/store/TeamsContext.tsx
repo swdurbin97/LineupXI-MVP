@@ -1,9 +1,11 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { Team, Player } from '../lib/types';
 import { saveLocal, loadLocal } from '../lib/persistence/local';
-import { playersToCSV, csvToPlayers } from '../lib/csv';
+import { playersToCSV, csvToPlayers, type CSVImportResult } from '../lib/csv';
+import { migrateTeamPositions } from '../lib/migrate';
 
 const STORAGE_KEY = 'yslm_teams_v1';
+const MIGRATION_KEY = 'yslm_teams_migration_v1';
 
 interface TeamsState {
   teams: Team[];
@@ -111,10 +113,11 @@ interface TeamsContextType extends TeamsState {
   addPlayer: (teamId: string, player: Omit<Player, 'id'>) => void;
   updatePlayer: (teamId: string, playerId: string, player: Partial<Player>) => void;
   removePlayer: (teamId: string, playerId: string) => void;
-  importPlayersCSV: (teamId: string, csv: string) => void;
+  importPlayersCSV: (teamId: string, csv: string) => CSVImportResult;
   exportPlayersCSV: (teamId: string) => string;
   isJerseyUnique: (teamId: string, jersey: number, excludeId?: string) => boolean;
   getCurrentTeam: () => Team | null;
+  lastImportResult: CSVImportResult | null;
 }
 
 const TeamsContext = createContext<TeamsContextType | null>(null);
@@ -124,11 +127,21 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
     teams: [],
     currentTeamId: null
   });
+  const [lastImportResult, setLastImportResult] = useState<CSVImportResult | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
     const stored = loadLocal<TeamsState>(STORAGE_KEY, { teams: [], currentTeamId: null });
-    dispatch({ type: 'SET_TEAMS', teams: stored.teams });
+    const migrationDone = loadLocal<boolean>(MIGRATION_KEY, false);
+
+    let teams = stored.teams;
+
+    if (!migrationDone && teams.length > 0) {
+      teams = teams.map(team => migrateTeamPositions(team));
+      saveLocal(MIGRATION_KEY, true);
+    }
+
+    dispatch({ type: 'SET_TEAMS', teams });
     if (stored.currentTeamId) {
       dispatch({ type: 'SET_CURRENT_TEAM', teamId: stored.currentTeamId });
     }
@@ -176,9 +189,11 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'REMOVE_PLAYER', teamId, playerId });
   };
 
-  const importPlayersCSV = (teamId: string, csv: string) => {
-    const players = csvToPlayers(csv);
-    dispatch({ type: 'SET_PLAYERS', teamId, players });
+  const importPlayersCSV = (teamId: string, csv: string): CSVImportResult => {
+    const result = csvToPlayers(csv);
+    dispatch({ type: 'SET_PLAYERS', teamId, players: result.players });
+    setLastImportResult(result);
+    return result;
   };
 
   const exportPlayersCSV = (teamId: string): string => {
@@ -213,7 +228,8 @@ export function TeamsProvider({ children }: { children: React.ReactNode }) {
       importPlayersCSV,
       exportPlayersCSV,
       isJerseyUnique,
-      getCurrentTeam
+      getCurrentTeam,
+      lastImportResult
     }}>
       {children}
     </TeamsContext.Provider>
