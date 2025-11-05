@@ -5,8 +5,8 @@ export const LEGACY_POSITION_MAP: Record<string, PositionCode> = {
   'CB': 'CB',
   'CB1': 'CB',
   'CB2': 'CB',
-  'LCB': 'LCB',
-  'RCB': 'RCB',
+  'LCB': 'CB',
+  'RCB': 'CB',
   'LB': 'LB',
   'RB': 'RB',
   'LWB': 'LWB',
@@ -16,11 +16,13 @@ export const LEGACY_POSITION_MAP: Record<string, PositionCode> = {
   'CM1': 'CM',
   'CM2': 'CM',
   'CM3': 'CM',
-  'LCM': 'LCM',
-  'RCM': 'RCM',
+  'LCM': 'CM',
+  'RCM': 'CM',
   'CAM': 'CAM',
   'LM': 'LM',
   'RM': 'RM',
+  'RAM': 'RAM',
+  'LAM': 'LAM',
   'LW': 'LW',
   'RW': 'RW',
   'ST': 'ST',
@@ -32,9 +34,11 @@ export const LEGACY_POSITION_MAP: Record<string, PositionCode> = {
   'D': 'CB',
   'DEF': 'CB',
   'DEFENSE': 'CB',
+  'DEFENDER': 'CB',
   'M': 'CM',
   'MID': 'CM',
   'MIDFIELD': 'CM',
+  'MIDFIELDER': 'CM',
   'F': 'ST',
   'FWD': 'ST',
   'FORWARD': 'ST',
@@ -44,6 +48,22 @@ export const LEGACY_POSITION_MAP: Record<string, PositionCode> = {
   'WING': 'LW',
   'WINGER': 'LW',
   'BACK': 'CB',
+  'RIGHT ATTACKING MID': 'RAM',
+  'RIGHT ATTACKING MIDFIELDER': 'RAM',
+  'RIGHT AM': 'RAM',
+  'R AM': 'RAM',
+  'LEFT ATTACKING MID': 'LAM',
+  'LEFT ATTACKING MIDFIELDER': 'LAM',
+  'LEFT AM': 'LAM',
+  'L AM': 'LAM',
+  'CENTRE BACK': 'CB',
+  'CENTER BACK': 'CB',
+  'CENTRE FORWARD': 'CF',
+  'CENTER FORWARD': 'CF',
+  'CENTRE MID': 'CM',
+  'CENTER MID': 'CM',
+  'CENTRE MIDFIELDER': 'CM',
+  'CENTER MIDFIELDER': 'CM',
 };
 
 export function normalizePosition(input: string | undefined | null): PositionCode | null {
@@ -51,7 +71,7 @@ export function normalizePosition(input: string | undefined | null): PositionCod
     return null;
   }
 
-  const normalized = input.trim().toUpperCase();
+  const normalized = input.trim().toUpperCase().replace(/[-_]/g, ' ');
 
   if (POSITION_CODES.includes(normalized as PositionCode)) {
     return normalized as PositionCode;

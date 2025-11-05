@@ -96,36 +96,36 @@ interface SavedLineup {
 
 ## Position Codes
 
-LineupXI uses a standardized set of 19 position codes to represent all soccer field positions.
+LineupXI uses a standardized set of 19 position codes to represent all soccer field positions. This is the canonical list in order:
 
 ### Goalkeeper (1)
 - `GK` - Goalkeeper
 
-### Defenders (6)
-- `CB` - Center Back
-- `LCB` - Left Center Back
-- `RCB` - Right Center Back
-- `LB` - Left Back
+### Defenders (5)
 - `RB` - Right Back
-- `LWB` - Left Wing Back
 - `RWB` - Right Wing Back
+- `LB` - Left Back
+- `LWB` - Left Wing Back
+- `CB` - Center Back
 
 ### Midfielders (7)
 - `CDM` - Central Defensive Midfielder
 - `CM` - Center Midfielder
-- `LCM` - Left Center Midfielder
-- `RCM` - Right Center Midfielder
-- `CAM` - Central Attacking Midfielder
-- `LM` - Left Midfielder
 - `RM` - Right Midfielder
+- `LM` - Left Midfielder
+- `RAM` - Right Attacking Midfielder
+- `LAM` - Left Attacking Midfielder
+- `CAM` - Central Attacking Midfielder
 
-### Forwards (5)
-- `LW` - Left Winger
-- `RW` - Right Winger
-- `ST` - Striker
-- `CF` - Center Forward
-- `LF` - Left Forward
+### Forwards (6)
 - `RF` - Right Forward
+- `LF` - Left Forward
+- `CF` - Center Forward
+- `RW` - Right Winger
+- `LW` - Left Winger
+- `ST` - Striker
+
+**Complete ordered list:** GK, RB, RWB, LB, LWB, CB, CDM, CM, RM, LM, RAM, LAM, CAM, RF, LF, CF, RW, LW, ST
 
 **Note:** Position codes are always uppercase and do not include numeric suffixes (e.g., "CB", not "CB1" or "CB2").
 
