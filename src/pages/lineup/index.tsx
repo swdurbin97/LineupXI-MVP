@@ -21,6 +21,7 @@ import { toast, toastWithUndo } from '../../lib/toast';
 import ScaledPage from '../../components/layout/ScaledPage';
 import PlayerCard from '../../components/lineup/PlayerCard';
 import { findIn } from '../../lib/collections';
+import { xyPercent } from '../../lib/coords';
 
 function LineupPageContent() {
   const { teams, currentTeamId, setCurrentTeam } = useTeamsStore();
@@ -700,46 +701,29 @@ function LineupPageContent() {
                     const formation = formations.find(f => f.code === working.formationCode);
                     if (!formation) return null;
 
-                    return formation.slot_map.map((slot: any) => {
+                    return formation.slot_map.map((slot: any, idx: number) => {
                       const playerId = working.onField?.[slot.slot_id];
                       const player = playerId ? currentTeam.players.find(p => p.id === playerId) : undefined;
 
                       // Use draft positions if available in edit mode
                       const draftPos = editDraft[working.formationCode]?.slots?.[slot.slot_code];
-                      const baseX = draftPos?.x ?? slot.x;
-                      const baseY = draftPos?.y ?? slot.y;
+                      const effectiveSlot = draftPos ? { ...slot, x: draftPos.x, y: draftPos.y } : slot;
 
-                      // Canonical data: absolute 105×68, bottom-left origin
-                      // SlotMarker needs: percentage 0-100, top-left origin
-                      const PITCH_W = 105;
-                      const PITCH_H = 68;
-
-                      // Convert from absolute coords (8-105 range) to percentage (0-100)
-                      // If coords are already in 0-1 range, scale to 100; if 0-100, keep as-is
-                      let renderX: number;
-                      let renderY: number;
-
-                      if (baseX > 1 && baseX <= PITCH_W) {
-                        // Absolute coordinates (e.g., 8, 22, 52)
-                        renderX = (baseX / PITCH_W) * 100;
-                        renderY = ((PITCH_H - baseY) / PITCH_H) * 100; // Flip Y for top-left origin
-                      } else if (baseX > 0 && baseX <= 1) {
-                        // Normalized coordinates (0-1)
-                        renderX = baseX * 100;
-                        renderY = (1 - baseY) * 100; // Flip Y for top-left origin
-                      } else {
-                        // Already percentage (0-100) - use as-is but flip Y if needed
-                        renderX = baseX;
-                        renderY = 100 - baseY; // Flip Y for top-left origin
-                      }
+                      // Use per-axis coordinate detection and conversion
+                      const { leftPct, topPct } = xyPercent(effectiveSlot);
 
                       return (
-                        <div key={slot.slot_id} className="relative" data-slot-id={slot.slot_id}>
+                        <div
+                          key={slot.slot_id ?? slot.id ?? idx}
+                          className="absolute"
+                          style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+                          data-slot-id={slot.slot_id ?? slot.id}
+                        >
                           <SlotMarker
                             slotId={slot.slot_id}
                             slotCode={slot.slot_code}
-                            x={renderX}
-                            y={renderY}
+                            x={leftPct}
+                            y={topPct}
                             player={player}
                             isSelected={selectedSlotCode === slot.slot_code}
                             tunerOn={positionsEditor}

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getCompatibilityScore, findBestSlotForPlayer, type FormationSlotData } from '../lib/placement';
 import type { Player } from '../lib/types';
 import type { PositionCode } from '../data/positions';
+import { xyPercent } from '../lib/coords';
 
 describe('Position Compatibility System', () => {
   describe('getCompatibilityScore', () => {
@@ -125,15 +126,17 @@ describe('Position Compatibility System', () => {
     it('uses y-coordinate tie-breaker after x', () => {
       const player = createPlayer('p1', 'CM' as PositionCode);
       const slots = [
-        createSlot('slot1', 'CDM' as PositionCode, 50, 60), // Same x, higher y
-        createSlot('slot2', 'CAM' as PositionCode, 50, 40), // Same x, lower y
+        createSlot('slot1', 'CDM' as PositionCode, 50, 60), // Same x, higher y in data
+        createSlot('slot2', 'CAM' as PositionCode, 50, 40), // Same x, lower y in data
       ];
 
       const result = findBestSlotForPlayer(player, slots, {}, []);
 
       expect(result.target.type).toBe('field');
       if (result.target.type === 'field') {
-        expect(result.target.slotId).toBe('slot2'); // Lower y = 40
+        // After Y-flip: slot1 y=60 → topPct≈12%, slot2 y=40 → topPct≈41%
+        // Lower topPct wins (slot1)
+        expect(result.target.slotId).toBe('slot1');
       }
     });
 
@@ -282,6 +285,53 @@ describe('Position Compatibility System', () => {
       const foundSlot = slots.find(s => s.slot_id === (result.target as any).slotId);
       expect(foundSlot).toBeDefined();
       expect(foundSlot?.slot_code).toBe('CDM');
+    });
+  });
+
+  describe('xyPercent coordinate conversion', () => {
+    it('handles mixed units per-axis (x absolute, y percent) correctly', () => {
+      const slot = { x: 8, y: 50 }; // x absolute out of 105, y could be absolute (50/68) or percent
+      const { leftPct, topPct } = xyPercent(slot);
+      expect(Math.round(leftPct)).toBe(8);   // ~7.6 → 8 after rounding
+      // y=50 when 1 < y <= 68 is treated as absolute: (68-50)/68*100 ≈ 26%
+      expect(Math.round(topPct)).toBe(26);
+    });
+
+    it('handles normalized x and absolute y', () => {
+      const slot = { x: 0.5, y: 34 }; // x normalized, y absolute (middle of 68)
+      const { leftPct, topPct } = xyPercent(slot);
+      expect(leftPct).toBe(50);  // 0.5 * 100
+      expect(Math.round(topPct)).toBe(50);  // (68-34)/68*100 = 50
+    });
+
+    it('handles both normalized coordinates', () => {
+      const slot = { x: 0.25, y: 0.75 };
+      const { leftPct, topPct } = xyPercent(slot);
+      expect(leftPct).toBe(25);   // 0.25 * 100
+      expect(topPct).toBe(25);    // (1 - 0.75) * 100 (flipped)
+    });
+
+    it('handles both absolute coordinates', () => {
+      const slot = { x: 52.5, y: 34 }; // middle of pitch
+      const { leftPct, topPct } = xyPercent(slot);
+      expect(leftPct).toBe(50);  // 52.5/105 * 100
+      expect(topPct).toBe(50);   // (68-34)/68 * 100
+    });
+
+    it('handles alternative field names', () => {
+      const slot = { left: 52.5, top: 34 };
+      const { leftPct, topPct } = xyPercent(slot);
+      expect(leftPct).toBe(50);
+      expect(topPct).toBe(50);
+    });
+
+    it('handles explicit percent fields', () => {
+      const slot = { x_pct: 25, y_pct: 75 };
+      const { leftPct, topPct } = xyPercent(slot);
+      // x_pct=25 is 1 < 25 <= 105, treated as absolute: 25/105*100 ≈ 23.8%
+      expect(Math.round(leftPct)).toBe(24);
+      // y_pct=75 is 1 < 75 > 68, treated as percent: 100 - 75 = 25%
+      expect(topPct).toBe(25);
     });
   });
 });
