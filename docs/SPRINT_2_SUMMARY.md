@@ -386,3 +386,223 @@ For questions or issues related to Sprint 2 implementation:
 
 **Sprint 2 Complete** 🎉
 Auto-placement system is production-ready and tested.
+
+---
+
+## Sprint 2 Wrap: QA Polish & Testing (2025-11-06)
+
+**Status:** ✅ Complete
+
+### New Features
+
+#### 1. Save Validation Guards
+
+**Authoritative Rule**: `canSave = (starters === 11 && availableCount === 0)`
+
+- No GK requirement enforced (can save with 0, 1, or 2+ GKs)
+- Save button disabled until conditions are met
+- Inline hint displays missing conditions dynamically
+- Helper text updates in real-time
+
+**Validation Messages:**
+- If starters ≠ 11: `"{starters}/11 on field"`
+- If availableCount > 0: `"{availableCount} player(s) still in Available"`
+- Multiple conditions joined with " • "
+
+**Implementation:**
+- `src/lib/lineupStatus.ts` - `computeLineupStatus()` utility
+- `src/pages/lineup/index.tsx` - Integrated validation UI
+- `src/__tests__/lineupStatus.test.ts` - Comprehensive unit tests
+
+#### 2. Debug Overlay Toggle (Dev Only)
+
+**Feature:**
+- Toggle button "Show IDs" in Lineup page header
+- Only visible when `import.meta.env.DEV === true`
+- Displays slot information: `"{slot_code} • {slot_id}"`
+- Purple chip overlay on each slot marker
+- Non-intrusive positioning above slot markers
+
+**Usage:**
+- Click "Show IDs ON/OFF" button in header
+- Useful for debugging formation data and support tickets
+- Automatically hidden in production builds
+
+**Implementation:**
+- `src/pages/lineup/index.tsx` - Toggle state and button
+- `src/components/lineup/SlotMarker.tsx` - Debug overlay rendering
+
+#### 3. Friendly Toast Messages
+
+**Message Mapping:**
+
+| Internal Reason | Friendly Message |
+|-----------------|------------------|
+| `exact primary` | Perfect match |
+| `exact secondary` | Secondary match |
+| `alternate (0.8)` | Good fit |
+| `alternate (0.6)` | Acceptable fit |
+| `no compatible slots (GK rule)` | Bench (GK rule) |
+| `bench fallback (score=0)` | Bench (no fit) |
+| `no formation/no open` | Bench (no space) |
+
+**Benefits:**
+- No raw internal strings leak to users
+- Clear, actionable feedback
+- Consistent messaging across all auto-placements
+
+**Implementation:**
+- `src/lib/placementMessages.ts` - Mapping utility
+- `src/store/LineupsContext.tsx` - Integration with autoPlacePlayer
+- `src/__tests__/placementMessages.test.ts` - Message verification tests
+
+### Testing Infrastructure
+
+#### Unit Tests (Vitest)
+
+**New Test Suites:**
+1. `lineupStatus.test.ts` - Save validation logic
+   - 11 starters + Available=0 → canSave=true
+   - Various invalid states correctly identified
+   - No GK requirement explicitly tested
+2. `placementMessages.test.ts` - Toast message mapping
+   - All internal reasons mapped correctly
+   - No raw tokens leak to output
+   - Case-insensitive matching
+
+**Running Tests:**
+```bash
+npm test                 # Run all unit tests
+npm run test:ui          # Open Vitest UI
+npm test lineupStatus    # Run specific suite
+```
+
+#### E2E Tests (Cypress)
+
+**Smoke Test Scenarios:**
+1. **4-2-3-1 Formation**: CAM placement with fallback to CF
+2. **3-5-2 Formation**: Multiple CB slots + undo consistency
+3. **GK Rule**: Verify bench placement when field full
+4. **Save Guard**: Verify new save rules (no GK requirement)
+5. **Debug Overlay**: Toggle functionality in dev mode
+
+**Running E2E Tests:**
+```bash
+npm run cypress           # Open Cypress UI
+npm run cypress:headless  # Run all tests headless
+npm run e2e:smoke         # Run tagged smoke tests only
+```
+
+**Note:** E2E tests are skeleton implementations requiring test data setup.
+
+### How We Score Placement
+
+Auto-placement uses a priority-based algorithm with weighted compatibility scores:
+
+**Priority Order:**
+1. **Exact Primary Match (1.0)** - Player's primary position matches slot
+   - Example: CB player → CB slot
+   - Result: Perfect match
+
+2. **Exact Secondary Match (1.0)** - Slot matches player's secondary position
+   - Example: Player with secondary ST → ST slot
+   - Result: Secondary match
+
+3. **Highest Alternate Score** - Compatibility matrix lookup
+   - **0.8 Score (Direct Neighbors)**: Same-side or direct role neighbors
+     - Examples: LB ↔ LWB, CM ↔ CDM, CM ↔ CAM
+     - Result: Good fit
+   - **0.6 Score (Adjacent Roles)**: Attacking-mid ↔ wide/forward
+     - Examples: CAM ↔ CF, LAM ↔ LM
+     - Result: Acceptable fit
+
+4. **Bench Fallback (0.0)** - No compatible field slots
+   - Reasons: GK rule, no relations, field full
+   - Result: Bench (GK rule) or Bench (no fit)
+
+**Tie-Breaking Rules** (when scores equal):
+1. Lower x-coordinate (leftmost)
+2. Lower y-coordinate (topmost)
+3. Lexicographic slot ID
+
+**GK Rule:**
+- Non-GK players cannot fill GK slots
+- GK players can only fill GK or compatible field slots
+- Prevents lineup corruption
+
+### Available & Undo Consistency
+
+**Guarantee:** After any undo operation, the Available players list is recomputed deterministically from `onField + benchSlots`.
+
+**Implementation:**
+- Available list never cached between renders
+- Computed fresh from current state
+- useMemo dependency on `[currentTeam, working]` ensures consistency
+- Undo restores exact snapshot, triggers recompute
+
+**Testing:**
+- Unit tests verify place → undo → Available parity
+- Order-insensitive comparison (Set-based)
+
+### QA Checklist
+
+**Save Validation:**
+- [x] Save disabled when starters ≠ 11
+- [x] Save disabled when Available > 0
+- [x] Save enabled with 11 starters, no Available (no GK check)
+- [x] Inline hint shows correct missing conditions
+- [x] Helper text updates dynamically
+
+**Debug Overlay:**
+- [x] Toggle button visible in dev mode only
+- [x] Clicking toggle shows/hides slot IDs
+- [x] Overlay displays: `{slot_code} • {slot_id}`
+- [x] Does not interfere with position tuner mode
+
+**Friendly Messages:**
+- [x] All internal reasons mapped to friendly text
+- [x] No raw internal strings appear in toasts
+- [x] Case-insensitive matching works
+- [x] Undo toast shows friendly message
+
+**Undo Consistency:**
+- [x] Undo restores exact previous state
+- [x] Available list recomputed after undo
+- [x] No stale player references
+
+**Manual QA Resolutions:**
+- 1366×768: Layout correct, no overflow
+- 1440×900: Layout correct, optimal spacing
+- Save button accurate at all states
+- Overlay toggle works as expected
+
+### Files Modified
+
+| File | Purpose |
+|------|---------|
+| `src/lib/lineupStatus.ts` | NEW - Save validation utility |
+| `src/lib/placementMessages.ts` | NEW - Friendly message mapping |
+| `src/__tests__/lineupStatus.test.ts` | NEW - Validation tests |
+| `src/__tests__/placementMessages.test.ts` | NEW - Message tests |
+| `src/pages/lineup/index.tsx` | MODIFIED - Save validation, debug overlay |
+| `src/components/lineup/SlotMarker.tsx` | MODIFIED - Debug ID chip |
+| `src/store/LineupsContext.tsx` | MODIFIED - Friendly messages |
+| `cypress.config.js` | NEW - Cypress configuration |
+| `cypress/e2e/auto-placement-smoke.cy.js` | NEW - E2E smoke tests |
+| `vitest.config.js` | NEW - Vitest configuration |
+| `package.json` | MODIFIED - Test scripts added |
+
+### Acceptance Criteria ✅
+
+**Sprint 2 Wrap:**
+- [x] Save button enabled only when 11 starters and Available empty
+- [x] No GK requirement for save validation
+- [x] Inline hint displays missing conditions accurately
+- [x] Debug overlay toggle works in dev, hidden in prod
+- [x] Friendly toast messages for all auto-placement results
+- [x] No raw internal reason strings leak to users
+- [x] Undo restores Available list correctly
+- [x] All unit tests pass
+- [x] Cypress configured and smoke tests created
+- [x] npm run build succeeds with no errors
+- [x] No changes to legacy repositories

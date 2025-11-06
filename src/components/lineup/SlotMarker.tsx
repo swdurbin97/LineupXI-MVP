@@ -13,6 +13,7 @@ interface SlotMarkerProps {
   onClick: () => void;
   onDrop?: (playerId: string) => void;
   tunerOn?: boolean;
+  showDebugId?: boolean;
   onNudge?: (slotCode: string, dx: number, dy: number) => void;
   onSelect?: (slotCode: string) => void;
   editMode?: boolean;
@@ -21,7 +22,7 @@ interface SlotMarkerProps {
 }
 
 export default function SlotMarker({
-  slotId, slotCode, x, y, player, isSelected, onClick, onDrop, tunerOn, onNudge, onSelect, editMode, onPositionChange, scale = 1
+  slotId, slotCode, x, y, player, isSelected, onClick, onDrop, tunerOn, showDebugId, onNudge, onSelect, editMode, onPositionChange, scale = 1
 }: SlotMarkerProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -207,6 +208,13 @@ export default function SlotMarker({
       {tunerOn && (
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/75 text-white px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap z-10">
           {slotCode} • {Math.round(x)}, {Math.round(y)}
+        </div>
+      )}
+
+      {/* Debug ID overlay (dev only) */}
+      {showDebugId && !tunerOn && (
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-1.5 py-0.5 rounded text-[9px] whitespace-nowrap z-10 shadow-sm">
+          {slotCode} • {slotId}
         </div>
       )}
       

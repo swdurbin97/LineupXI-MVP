@@ -18,6 +18,7 @@ import { serializeLineup, isEqual } from '../../lib/lineupSerializer';
 import * as savedLineupsLib from '../../lib/savedLineups';
 import type { SavedLineup, SerializedBuilderState } from '../../types/lineup';
 import { toast, toastWithUndo } from '../../lib/toast';
+import { computeLineupStatus } from '../../lib/lineupStatus';
 import ScaledPage from '../../components/layout/ScaledPage';
 import PlayerCard from '../../components/lineup/PlayerCard';
 import { findIn } from '../../lib/collections';
@@ -52,6 +53,7 @@ function LineupPageContent() {
     }
   });
   const [selectedSlotCode, setSelectedSlotCode] = useState<string | null>(null);
+  const [showSlotIds, setShowSlotIds] = useState<boolean>(false);
 
   // Saved lineup state
   const navigate = useNavigate();
@@ -488,17 +490,15 @@ function LineupPageContent() {
     );
   }
 
-  // Check GK count by slot ID pattern (e.g., "4231w:GK:0")
-  const gkCount = working?.onField
-    ? Object.entries(working.onField).filter(
-        ([slotId, playerId]) => /:GK:\d+$/.test(slotId) && playerId
-      ).length
-    : 0;
+  // Compute lineup status using utility
+  const lineupStatus = useMemo(() => {
+    if (!currentTeam || !working) {
+      return { starters: 0, availableCount: 0, canSave: false, reasons: [] };
+    }
+    return computeLineupStatus(working, currentTeam.players);
+  }, [currentTeam, working]);
 
-  const onFieldCount = working?.onField
-    ? Object.values(working.onField).filter(id => id).length
-    : 0;
-  const maxPlayers = 11;
+  const { starters, availableCount, canSave, reasons } = lineupStatus;
 
   // Compute available players (not on field, not on bench)
   const availablePlayers = useMemo(() => {
@@ -513,8 +513,14 @@ function LineupPageContent() {
     );
   }, [currentTeam, working]);
 
-  const availableCount = availablePlayers?.length ?? 0;
-  const canSave = onFieldCount === 11 && availableCount === 0;
+  // GK count for informational display (not used for save validation)
+  const gkCount = working?.onField
+    ? Object.entries(working.onField).filter(
+        ([slotId, playerId]) => /:GK:\d+$/.test(slotId) && playerId
+      ).length
+    : 0;
+
+  const maxPlayers = 11;
 
   return (
     <div className="h-[calc(100vh-64px)]">
@@ -565,6 +571,21 @@ function LineupPageContent() {
           <span className="text-xs px-2 py-1 rounded bg-gray-100">
             Orientation: Left → Right
           </span>
+
+          {/* Debug overlay toggle (dev only) */}
+          {import.meta.env.DEV && (
+            <button
+              onClick={() => setShowSlotIds(!showSlotIds)}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                showSlotIds
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+              title="Toggle slot ID debug overlay"
+            >
+              Show IDs {showSlotIds ? 'ON' : 'OFF'}
+            </button>
+          )}
         </div>
         
         {/* Right side controls */}
@@ -579,13 +600,13 @@ function LineupPageContent() {
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
-              title={!canSave ? 'You need 11 starters and no players in Available' : 'Ctrl/Cmd+S'}
+              title={!canSave ? 'Complete requirements to save' : 'Ctrl/Cmd+S'}
             >
               {loadedLineupId ? 'Save Changes' : 'Save Lineup'}
             </button>
-            {!canSave && (
+            {!canSave && reasons.length > 0 && (
               <div className="mt-1 max-w-[280px] text-xs text-slate-500 leading-snug" role="status" aria-live="polite">
-                You can save once you have 11 starters and no players in Available.
+                {reasons.join(' • ')}
               </div>
             )}
           </div>
@@ -623,13 +644,18 @@ function LineupPageContent() {
             {/* Status indicators */}
             <div className="mb-4 flex items-center gap-4 text-sm">
               <div className={`px-2 py-1 rounded ${
-                onFieldCount === maxPlayers ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                starters === maxPlayers ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
               }`}>
-                {onFieldCount}/{maxPlayers} on field
+                {starters}/{maxPlayers} on field
               </div>
+              {availableCount > 0 && (
+                <div className="px-2 py-1 rounded bg-blue-100 text-blue-800">
+                  {availableCount} in Available
+                </div>
+              )}
               {gkCount !== 1 && (
                 <div className="px-2 py-1 rounded bg-yellow-100 text-yellow-800">
-                  ⚠️ Need exactly 1 GK (have {gkCount})
+                  ⚠️ GK: {gkCount}
                 </div>
               )}
             </div>
@@ -728,6 +754,7 @@ function LineupPageContent() {
                             isSelected={selectedSlotCode === slot.slot_code}
                             tunerOn={positionsEditor}
                             scale={scale}
+                            showDebugId={showSlotIds}
                             onNudge={positionsEditor ? handleNudge : undefined}
                             onSelect={positionsEditor ? setSelectedSlotCode : undefined}
                             onClick={() => {
@@ -911,7 +938,7 @@ function LineupPageContent() {
         defaultName={`${currentTeam?.name || 'Untitled'} — ${currentFormation?.name || 'Formation'} — ${new Date().toISOString().split('T')[0]}`}
         teamName={currentTeam?.name}
         formationName={currentFormation?.name || ''}
-        onFieldCount={onFieldCount}
+        onFieldCount={starters}
         benchCount={(working?.benchSlots || []).filter(Boolean).length}
         loadedLineupId={loadedLineupId}
       />

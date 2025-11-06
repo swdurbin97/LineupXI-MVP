@@ -5,6 +5,7 @@ import { migrateWorkingLineup } from '../lib/migrate';
 import { findBestSlotForPlayer } from '../lib/placement';
 import { findIn, valuesOf } from '../lib/collections';
 import { resolveFormation } from '../lib/formations';
+import { friendlyPlacementMessage } from '../lib/placementMessages';
 
 const STORAGE_KEY = 'yslm_lineup_working_v1';
 
@@ -517,9 +518,11 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
           ? formationSlots.find((s: any) => s.slot_id === result.target.slotId)?.slot_code || 'field'
           : 'Bench';
 
+      const friendlyMessage = friendlyPlacementMessage(result.reason, player.name, targetDesc);
+
       return {
         success: true,
-        message: `${player.name} → ${targetDesc} (${result.reason})`
+        message: friendlyMessage
       };
     } catch (error: any) {
       console.error('Auto-placement error:', error);

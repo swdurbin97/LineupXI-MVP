@@ -197,7 +197,9 @@ describe('Position Compatibility System', () => {
       const result = findBestSlotForPlayer(player, slots, {}, bench);
 
       expect(result.target.type).toBe('bench');
-      expect(result.target.benchIndex).toBe(0);
+      if (result.target.type === 'bench') {
+        expect(result.target.benchIndex).toBe(0);
+      }
       expect(result.reason).toBe('bench fallback (score=0)');
     });
 
@@ -209,7 +211,9 @@ describe('Position Compatibility System', () => {
       const result = findBestSlotForPlayer(player, slots, {}, bench);
 
       expect(result.target.type).toBe('bench');
-      expect(result.target.benchIndex).toBe(2);
+      if (result.target.type === 'bench') {
+        expect(result.target.benchIndex).toBe(2);
+      }
     });
 
     it('appends to bench if all slots filled', () => {
@@ -220,7 +224,9 @@ describe('Position Compatibility System', () => {
       const result = findBestSlotForPlayer(player, slots, {}, bench);
 
       expect(result.target.type).toBe('bench');
-      expect(result.target.benchIndex).toBe(8); // Append
+      if (result.target.type === 'bench') {
+        expect(result.target.benchIndex).toBe(8); // Append
+      }
     });
 
     it('skips already-filled slots', () => {
