@@ -1,5 +1,5 @@
 # Sprint 2: Position Relations & Auto-Placement System
-
+[![CI Status](https://github.com/swdurbin97/LineupXI-MVP/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/swdurbin97/LineupXI-MVP/actions/workflows/ci.yml)
 **Status:** ✅ Implemented
 **Date:** 2025-11-05
 
