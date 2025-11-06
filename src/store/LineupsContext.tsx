@@ -4,6 +4,7 @@ import { saveLocal, loadLocal } from '../lib/persistence/local';
 import { migrateWorkingLineup } from '../lib/migrate';
 import { findBestSlotForPlayer } from '../lib/placement';
 import { findIn, valuesOf } from '../lib/collections';
+import { resolveFormation } from '../lib/formations';
 
 const STORAGE_KEY = 'yslm_lineup_working_v1';
 
@@ -444,23 +445,26 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `Player not found (${playerId})` };
       }
 
-      // Find formation data using safe collection helper
-      const formationData = findIn(
-        formationsSeedRef.current,
-        (f: any) => f?.code === state.working!.formationCode
-      );
-      if (!formationData) {
-        const collectionType = Object.prototype.toString.call(formationsSeedRef.current);
-        return { success: false, message: `Formation not found (${state.working.formationCode}); formations collection type=${collectionType}` };
+      // Resolve formation using the robust resolver
+      const formationSource = formationsSeedRef.current;
+      const activeCode = state.working.formationCode;
+      const formationData = resolveFormation(formationSource, activeCode);
+
+      if (!formationData || (!formationData.slot_map?.length && !formationData.slots?.length)) {
+        const collectionType = Object.prototype.toString.call(
+          formationSource && ('current' in (formationSource as any) ? (formationSource as any).current : formationSource)
+        );
+        return { success: false, message: `Formation not found (${String(activeCode)}); formations collection type=${collectionType}` };
       }
 
-      // Build formation slots array from formation data
-      const formationSlots = formationData.slot_map?.map((slot: any, idx: number) => ({
+      // Build formation slots array from formation data (support both slot_map and slots)
+      const slotSource = formationData.slot_map || formationData.slots || [];
+      const formationSlots = slotSource.map((slot: any, idx: number) => ({
         slot_id: `${formationData.code}:${slot.slot_code}:${idx}`,
         slot_code: slot.slot_code,
         x: slot.x,
         y: slot.y
-      })) || [];
+      }));
 
       // Normalize onField and bench using safe helpers
       const onFieldMap = (state.working.onField && typeof state.working.onField === 'object')
