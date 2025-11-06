@@ -699,7 +699,7 @@ function LineupPageContent() {
                   {(() => {
                     const formation = formations.find(f => f.code === working.formationCode);
                     if (!formation) return null;
-                    
+
                     return formation.slot_map.map((slot: any) => {
                       const playerId = working.onField?.[slot.slot_id];
                       const player = playerId ? currentTeam.players.find(p => p.id === playerId) : undefined;
@@ -714,8 +714,24 @@ function LineupPageContent() {
                       const PITCH_W = 105;
                       const PITCH_H = 68;
 
-                      const renderX = (baseX / PITCH_W) * 100;
-                      const renderY = ((PITCH_H - baseY) / PITCH_H) * 100; // Flip Y
+                      // Convert from absolute coords (8-105 range) to percentage (0-100)
+                      // If coords are already in 0-1 range, scale to 100; if 0-100, keep as-is
+                      let renderX: number;
+                      let renderY: number;
+
+                      if (baseX > 1 && baseX <= PITCH_W) {
+                        // Absolute coordinates (e.g., 8, 22, 52)
+                        renderX = (baseX / PITCH_W) * 100;
+                        renderY = ((PITCH_H - baseY) / PITCH_H) * 100; // Flip Y for top-left origin
+                      } else if (baseX > 0 && baseX <= 1) {
+                        // Normalized coordinates (0-1)
+                        renderX = baseX * 100;
+                        renderY = (1 - baseY) * 100; // Flip Y for top-left origin
+                      } else {
+                        // Already percentage (0-100) - use as-is but flip Y if needed
+                        renderX = baseX;
+                        renderY = 100 - baseY; // Flip Y for top-left origin
+                      }
 
                       return (
                         <div key={slot.slot_id} className="relative" data-slot-id={slot.slot_id}>

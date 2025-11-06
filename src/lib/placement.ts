@@ -2,6 +2,7 @@ import { getCompatibilityScore } from '../data/position-relations';
 import type { PositionCode } from '../data/positions';
 import type { Player } from './types';
 import { getNormalizedSlots, type NormSlot } from './slots';
+import { xyPercent } from './coords';
 
 export { getCompatibilityScore };
 
@@ -113,12 +114,11 @@ export function findBestSlotForPlayer(
     if (a.bucket !== b.bucket) return a.bucket - b.bucket;
     if (a.score !== b.score) return b.score - a.score;
 
-    const ax = a.slot.x ?? Number.MAX_SAFE_INTEGER;
-    const bx = b.slot.x ?? Number.MAX_SAFE_INTEGER;
-    if (ax !== bx) return ax - bx;
+    // Use normalized percent coordinates for tie-breaking
+    const { leftPct: ax, topPct: ay } = xyPercent(a.slot);
+    const { leftPct: bx, topPct: by } = xyPercent(b.slot);
 
-    const ay = a.slot.y ?? Number.MAX_SAFE_INTEGER;
-    const by = b.slot.y ?? Number.MAX_SAFE_INTEGER;
+    if (ax !== bx) return ax - bx;
     if (ay !== by) return ay - by;
 
     return String(a.slot.slot_id).localeCompare(String(b.slot.slot_id));
