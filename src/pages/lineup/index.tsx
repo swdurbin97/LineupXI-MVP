@@ -17,13 +17,13 @@ import { SaveLineupModal } from '../../components/modals/SaveLineupModal';
 import { serializeLineup, isEqual } from '../../lib/lineupSerializer';
 import * as savedLineupsLib from '../../lib/savedLineups';
 import type { SavedLineup, SerializedBuilderState } from '../../types/lineup';
-import { toast } from '../../lib/toast';
+import { toast, toastWithUndo } from '../../lib/toast';
 import ScaledPage from '../../components/layout/ScaledPage';
 import PlayerCard from '../../components/lineup/PlayerCard';
 
 function LineupPageContent() {
   const { teams, currentTeamId, setCurrentTeam } = useTeamsStore();
-  const { working, startLineup, placePlayer, removeFromSlot, setRole, resetWorking, assignToBench, removeFromBench } = useLineupsStore();
+  const { working, startLineup, placePlayer, removeFromSlot, setRole, resetWorking, assignToBench, removeFromBench, autoPlacePlayer, undoLastPlacement } = useLineupsStore();
   const [formations, setFormations] = useState<any[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
@@ -787,6 +787,20 @@ function LineupPageContent() {
 
                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                             e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, rect.width * 0.2, rect.height * 0.2);
+                          }}
+                          onDoubleClick={() => {
+                            if (!currentTeam) return;
+
+                            const playerLookup = (id: string) =>
+                              currentTeam.players.find(player => player.id === id);
+
+                            const result = autoPlacePlayer(p.id, playerLookup);
+
+                            if (result.success) {
+                              toastWithUndo(result.message, undoLastPlacement, 'success');
+                            } else {
+                              toast(result.message, 'error');
+                            }
                           }}
                         />
                       ))}

@@ -2,11 +2,13 @@ import React, { createContext, useContext, useReducer, useEffect, useRef } from 
 import { Lineup } from '../lib/types';
 import { saveLocal, loadLocal } from '../lib/persistence/local';
 import { migrateWorkingLineup } from '../lib/migrate';
+import { findBestSlotForPlayer } from '../lib/placement';
 
 const STORAGE_KEY = 'yslm_lineup_working_v1';
 
 interface LineupsState {
   working: Lineup | null;
+  undoSnapshot: Lineup | null;
 }
 
 type LineupsAction =
@@ -19,12 +21,14 @@ type LineupsAction =
   | { type: 'ASSIGN_TO_BENCH'; index: number; playerId: string }
   | { type: 'REMOVE_FROM_BENCH'; index: number }
   | { type: 'SWAP_BENCH_BENCH'; indexA: number; indexB: number }
-  | { type: 'MOVE_TO_BENCH'; index: number; playerId: string; fromSlotId?: string };
+  | { type: 'MOVE_TO_BENCH'; index: number; playerId: string; fromSlotId?: string }
+  | { type: 'AUTO_PLACE_PLAYER'; playerId: string; targetSlotId?: string; targetBenchIndex?: number }
+  | { type: 'RESTORE_UNDO_SNAPSHOT' };
 
 function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsState {
   switch (action.type) {
     case 'SET_LINEUP':
-      return { working: action.lineup };
+      return { working: action.lineup, undoSnapshot: null };
     
     case 'PLACE_PLAYER': {
       if (!state.working) return state;
@@ -48,7 +52,8 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
           ...state.working,
           onField: newOnField,
           bench: newBench
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -66,7 +71,8 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
             [action.slotId]: null
           },
           bench: [...state.working.bench, playerId]
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -84,7 +90,8 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
             [action.slotIdA]: playerB || null,
             [action.slotIdB]: playerA || null
           }
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -112,7 +119,8 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
           formationCode: action.formationCode,
           onField: newOnField,
           bench: [...state.working.bench, ...allPlayers]
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -126,7 +134,8 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
             ...state.working.roles,
             [action.role]: action.playerId
           }
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -155,21 +164,23 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
           ...state.working,
           onField: newOnField,
           benchSlots: newBenchSlots
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
-    
+
     case 'REMOVE_FROM_BENCH': {
       if (!state.working) return state;
       
       const newBenchSlots = [...(state.working.benchSlots || Array(8).fill(null))];
       newBenchSlots[action.index] = null;
-      
+
       return {
         working: {
           ...state.working,
           benchSlots: newBenchSlots
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -180,12 +191,13 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
       const temp = newBenchSlots[action.indexA];
       newBenchSlots[action.indexA] = newBenchSlots[action.indexB];
       newBenchSlots[action.indexB] = temp;
-      
+
       return {
         working: {
           ...state.working,
           benchSlots: newBenchSlots
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
     
@@ -197,7 +209,7 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
       if (action.fromSlotId) {
         newOnField[action.fromSlotId] = null;
       }
-      
+
       // Remove from other bench slots
       const newBenchSlots = [...(state.working.benchSlots || Array(8).fill(null))];
       newBenchSlots.forEach((id, idx) => {
@@ -205,19 +217,72 @@ function lineupsReducer(state: LineupsState, action: LineupsAction): LineupsStat
           newBenchSlots[idx] = null;
         }
       });
-      
+
       // Assign to bench
       newBenchSlots[action.index] = action.playerId;
-      
+
       return {
         working: {
           ...state.working,
           onField: newOnField,
           benchSlots: newBenchSlots
-        }
+        },
+        undoSnapshot: state.undoSnapshot
       };
     }
-    
+
+    case 'AUTO_PLACE_PLAYER': {
+      if (!state.working) return state;
+
+      // Save undo snapshot before making changes
+      const undoSnapshot = { ...state.working };
+
+      // Remove player from any current location
+      const newOnField = { ...state.working.onField };
+      Object.keys(newOnField).forEach(slotId => {
+        if (newOnField[slotId] === action.playerId) {
+          newOnField[slotId] = null;
+        }
+      });
+
+      const newBenchSlots = [...(state.working.benchSlots || Array(8).fill(null))];
+      newBenchSlots.forEach((id, idx) => {
+        if (id === action.playerId) {
+          newBenchSlots[idx] = null;
+        }
+      });
+
+      // Place player in target location
+      if (action.targetSlotId) {
+        // Place on field
+        newOnField[action.targetSlotId] = action.playerId;
+      } else if (action.targetBenchIndex !== undefined) {
+        // Place on bench
+        if (action.targetBenchIndex < newBenchSlots.length) {
+          newBenchSlots[action.targetBenchIndex] = action.playerId;
+        } else {
+          newBenchSlots.push(action.playerId);
+        }
+      }
+
+      return {
+        working: {
+          ...state.working,
+          onField: newOnField,
+          benchSlots: newBenchSlots
+        },
+        undoSnapshot
+      };
+    }
+
+    case 'RESTORE_UNDO_SNAPSHOT': {
+      if (!state.undoSnapshot) return state;
+      return {
+        working: state.undoSnapshot,
+        undoSnapshot: null
+      };
+    }
+
     default:
       return state;
   }
@@ -235,13 +300,16 @@ interface LineupsContextType extends LineupsState {
   removeFromBench: (index: number) => void;
   swapBenchBench: (indexA: number, indexB: number) => void;
   moveToBench: (index: number, playerId: string, fromSlotId?: string) => void;
+  autoPlacePlayer: (playerId: string, playerLookupFn: (id: string) => any) => { success: boolean; message: string };
+  undoLastPlacement: () => void;
 }
 
 const LineupsContext = createContext<LineupsContextType | null>(null);
 
 export function LineupsProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(lineupsReducer, {
-    working: null
+    working: null,
+    undoSnapshot: null
   });
   const formationsSeedRef = useRef<any>(null);
 
@@ -359,6 +427,77 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'MOVE_TO_BENCH', index, playerId, fromSlotId });
   };
 
+  const autoPlacePlayer = (playerId: string, playerLookupFn: (id: string) => any): { success: boolean; message: string } => {
+    if (!state.working || !formationsSeedRef.current) {
+      return { success: false, message: 'No active lineup' };
+    }
+
+    try {
+      // Get player data from lookup function
+      const player = playerLookupFn(playerId);
+      if (!player) {
+        return { success: false, message: 'Player not found' };
+      }
+
+      // Find formation data
+      const formationData = formationsSeedRef.current.find(
+        (f: any) => f.code === state.working!.formationCode
+      );
+      if (!formationData) {
+        return { success: false, message: 'Formation data not found' };
+      }
+
+      // Build formation slots array from formation data
+      const formationSlots = formationData.slot_map.map((slot: any, idx: number) => ({
+        slot_id: `${formationData.code}:${slot.slot_code}:${idx}`,
+        slot_code: slot.slot_code,
+        x: slot.x,
+        y: slot.y
+      }));
+
+      // Call placement algorithm
+      const result = findBestSlotForPlayer(
+        player,
+        formationSlots,
+        state.working!.onField,
+        state.working!.benchSlots || []
+      );
+
+      // Dispatch action with target
+      if (result.target.type === 'field') {
+        dispatch({
+          type: 'AUTO_PLACE_PLAYER',
+          playerId,
+          targetSlotId: result.target.slotId
+        });
+      } else {
+        dispatch({
+          type: 'AUTO_PLACE_PLAYER',
+          playerId,
+          targetBenchIndex: result.target.benchIndex
+        });
+      }
+
+      // Build success message
+      const targetDesc =
+        result.target.type === 'field'
+          ? formationSlots.find((s: any) => s.slot_id === result.target.slotId)?.slot_code || 'field'
+          : 'bench';
+
+      return {
+        success: true,
+        message: `${player.name} → ${targetDesc} (${result.reason})`
+      };
+    } catch (error) {
+      console.error('Auto-placement error:', error);
+      return { success: false, message: 'Placement failed' };
+    }
+  };
+
+  const undoLastPlacement = () => {
+    dispatch({ type: 'RESTORE_UNDO_SNAPSHOT' });
+  };
+
   return (
     <LineupsContext.Provider value={{
       ...state,
@@ -372,7 +511,9 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
       assignToBench,
       removeFromBench,
       swapBenchBench,
-      moveToBench
+      moveToBench,
+      autoPlacePlayer,
+      undoLastPlacement
     }}>
       {children}
     </LineupsContext.Provider>
