@@ -3,6 +3,7 @@ import { Lineup } from '../lib/types';
 import { saveLocal, loadLocal } from '../lib/persistence/local';
 import { migrateWorkingLineup } from '../lib/migrate';
 import { findBestSlotForPlayer } from '../lib/placement';
+import { findIn, valuesOf } from '../lib/collections';
 
 const STORAGE_KEY = 'yslm_lineup_working_v1';
 
@@ -443,12 +444,14 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `Player not found (${playerId})` };
       }
 
-      // Find formation data
-      const formationData = formationsSeedRef.current.find(
-        (f: any) => f.code === state.working!.formationCode
+      // Find formation data using safe collection helper
+      const formationData = findIn(
+        formationsSeedRef.current,
+        (f: any) => f?.code === state.working!.formationCode
       );
       if (!formationData) {
-        return { success: false, message: `Formation not found (${state.working.formationCode})` };
+        const collectionType = Object.prototype.toString.call(formationsSeedRef.current);
+        return { success: false, message: `Formation not found (${state.working.formationCode}); formations collection type=${collectionType}` };
       }
 
       // Build formation slots array from formation data
@@ -459,12 +462,20 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
         y: slot.y
       })) || [];
 
+      // Normalize onField and bench using safe helpers
+      const onFieldMap = (state.working.onField && typeof state.working.onField === 'object')
+        ? state.working.onField
+        : {};
+      const benchArr = Array.isArray(state.working.benchSlots)
+        ? state.working.benchSlots
+        : valuesOf(state.working.benchSlots);
+
       // Call placement algorithm
       const result = findBestSlotForPlayer(
         player,
         formationSlots,
-        state.working.onField || {},
-        state.working.benchSlots || []
+        onFieldMap,
+        benchArr
       );
 
       // Dispatch action with target

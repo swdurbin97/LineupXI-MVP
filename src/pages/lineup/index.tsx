@@ -20,6 +20,7 @@ import type { SavedLineup, SerializedBuilderState } from '../../types/lineup';
 import { toast, toastWithUndo } from '../../lib/toast';
 import ScaledPage from '../../components/layout/ScaledPage';
 import PlayerCard from '../../components/lineup/PlayerCard';
+import { findIn } from '../../lib/collections';
 
 function LineupPageContent() {
   const { teams, currentTeamId, setCurrentTeam } = useTeamsStore();
@@ -789,7 +790,9 @@ function LineupPageContent() {
                             e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, rect.width * 0.2, rect.height * 0.2);
                           }}
                           onDoubleClick={() => {
-                            console.log('Double-click triggered:', p.id, p.name, p.primaryPos);
+                            // Guard: always pass string id, not event or player object
+                            const playerId = String(p.id);
+                            console.log('Double-click triggered:', playerId, p.name, p.primaryPos);
 
                             if (!currentTeam) {
                               console.warn('No current team selected');
@@ -797,13 +800,16 @@ function LineupPageContent() {
                               return;
                             }
 
-                            const playerLookup = (id: string) => {
-                              const found = currentTeam.players.find(player => player.id === id);
-                              console.log('Player lookup:', id, found ? `${found.name} (${found.primaryPos})` : 'not found');
+                            // Safe player lookup using collection helper
+                            const makePlayerLookup = (rosterLike: any) => (id: string) => {
+                              const found = findIn(rosterLike, (player: any) => player?.id === id);
+                              const collectionType = Object.prototype.toString.call(rosterLike);
+                              console.log('Player lookup:', id, found ? `${found.name} (${found.primaryPos})` : `not found; collection type=${collectionType}`);
                               return found;
                             };
 
-                            const result = autoPlacePlayer(p.id, playerLookup);
+                            const playerLookup = makePlayerLookup(currentTeam.players);
+                            const result = autoPlacePlayer(playerId, playerLookup);
                             console.log('Auto-placement result:', result);
 
                             if (result.success) {
