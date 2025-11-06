@@ -87,3 +87,7 @@ function dismissToast(toastEl: HTMLElement, container: HTMLElement) {
     }
   }, 300);
 }
+
+export function toastError(message: string) {
+  toast(message, 'error');
+}

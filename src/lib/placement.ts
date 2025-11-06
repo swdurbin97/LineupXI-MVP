@@ -22,24 +22,51 @@ export interface PlacementResult {
 
 export function findBestSlotForPlayer(
   player: Player,
-  formationSlots: FormationSlotData[],
+  formationSlots: FormationSlotData[] | null | undefined,
   currentOnField: Record<string, string | null>,
   benchSlots: (string | null)[]
 ): PlacementResult {
+  // Guard: no formation or empty slots
+  if (!formationSlots || formationSlots.length === 0) {
+    const benchIndex = benchSlots.findIndex(b => !b);
+    return {
+      target: { type: 'bench', benchIndex: benchIndex >= 0 ? benchIndex : benchSlots.length },
+      reason: 'no formation/slots'
+    };
+  }
+
   // 1. Get open field slots
   const openSlots = formationSlots.filter(slot => !currentOnField[slot.slot_id]);
 
-  // 2. Apply GK rule: never place non-GK into GK slot
+  // Guard: no open field slots
+  if (openSlots.length === 0) {
+    const benchIndex = benchSlots.findIndex(b => !b);
+    return {
+      target: { type: 'bench', benchIndex: benchIndex >= 0 ? benchIndex : benchSlots.length },
+      reason: 'no open field slots'
+    };
+  }
+
+  // 2. Apply GK rule: only filter out GK slot for non-GK players
   const playerIsGK =
     player.primaryPos === 'GK' ||
     (player.secondaryPos && player.secondaryPos.includes('GK' as PositionCode));
 
   const filteredSlots = openSlots.filter(slot => {
-    if (slot.slot_code === 'GK' && !playerIsGK) {
-      return false;
-    }
-    return true;
+    // Keep non-GK slots for everyone
+    if (slot.slot_code !== 'GK') return true;
+    // Only keep GK slot if player is GK-capable
+    return playerIsGK;
   });
+
+  // Guard: after GK filter, no slots available
+  if (filteredSlots.length === 0) {
+    const benchIndex = benchSlots.findIndex(b => !b);
+    return {
+      target: { type: 'bench', benchIndex: benchIndex >= 0 ? benchIndex : benchSlots.length },
+      reason: 'no compatible slots (GK rule)'
+    };
+  }
 
   // 3. Score each open slot
   const primaryPos = player.primaryPos || 'CB';
@@ -48,7 +75,7 @@ export function findBestSlotForPlayer(
   interface ScoredSlot {
     slot: FormationSlotData;
     score: number;
-    bucket: 1 | 2 | 3; // 1=exact primary, 2=exact secondary, 3=alternate
+    bucket: 1 | 2 | 3;
   }
 
   const scoredSlots: ScoredSlot[] = filteredSlots.map(slot => {
@@ -82,23 +109,17 @@ export function findBestSlotForPlayer(
 
   // 4. Sort by priority: bucket (1 < 2 < 3), then score (high to low), then tie-break
   scoredSlots.sort((a, b) => {
-    // Priority 1: Bucket (lower is better: 1 = exact primary, 2 = exact secondary, 3 = alternate)
     if (a.bucket !== b.bucket) return a.bucket - b.bucket;
-
-    // Priority 2: Score (higher is better)
     if (a.score !== b.score) return b.score - a.score;
 
-    // Priority 3: Tie-break by x coordinate
     const ax = a.slot.x ?? Number.MAX_SAFE_INTEGER;
     const bx = b.slot.x ?? Number.MAX_SAFE_INTEGER;
     if (ax !== bx) return ax - bx;
 
-    // Priority 4: Tie-break by y coordinate
     const ay = a.slot.y ?? Number.MAX_SAFE_INTEGER;
     const by = b.slot.y ?? Number.MAX_SAFE_INTEGER;
     if (ay !== by) return ay - by;
 
-    // Priority 5: Tie-break by slotId (lexicographic)
     return String(a.slot.slot_id).localeCompare(String(b.slot.slot_id));
   });
 
@@ -119,12 +140,12 @@ export function findBestSlotForPlayer(
     };
   }
 
-  // 6. No viable field slot → find first open bench slot
+  // 6. No viable field slot (all scores = 0) → bench fallback
   const benchIndex = benchSlots.findIndex(slot => !slot);
   const idx = benchIndex >= 0 ? benchIndex : benchSlots.length;
 
   return {
     target: { type: 'bench', benchIndex: idx },
-    reason: 'bench fallback',
+    reason: 'bench fallback (score=0)',
   };
 }

@@ -428,15 +428,19 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const autoPlacePlayer = (playerId: string, playerLookupFn: (id: string) => any): { success: boolean; message: string } => {
-    if (!state.working || !formationsSeedRef.current) {
-      return { success: false, message: 'No active lineup' };
-    }
-
     try {
+      if (!state.working) {
+        return { success: false, message: 'No active lineup' };
+      }
+
+      if (!formationsSeedRef.current) {
+        return { success: false, message: 'Formation data not loaded' };
+      }
+
       // Get player data from lookup function
       const player = playerLookupFn(playerId);
       if (!player) {
-        return { success: false, message: 'Player not found' };
+        return { success: false, message: `Player not found (${playerId})` };
       }
 
       // Find formation data
@@ -444,23 +448,23 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
         (f: any) => f.code === state.working!.formationCode
       );
       if (!formationData) {
-        return { success: false, message: 'Formation data not found' };
+        return { success: false, message: `Formation not found (${state.working.formationCode})` };
       }
 
       // Build formation slots array from formation data
-      const formationSlots = formationData.slot_map.map((slot: any, idx: number) => ({
+      const formationSlots = formationData.slot_map?.map((slot: any, idx: number) => ({
         slot_id: `${formationData.code}:${slot.slot_code}:${idx}`,
         slot_code: slot.slot_code,
         x: slot.x,
         y: slot.y
-      }));
+      })) || [];
 
       // Call placement algorithm
       const result = findBestSlotForPlayer(
         player,
         formationSlots,
-        state.working!.onField,
-        state.working!.benchSlots || []
+        state.working.onField || {},
+        state.working.benchSlots || []
       );
 
       // Dispatch action with target
@@ -482,15 +486,16 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
       const targetDesc =
         result.target.type === 'field'
           ? formationSlots.find((s: any) => s.slot_id === result.target.slotId)?.slot_code || 'field'
-          : 'bench';
+          : 'Bench';
 
       return {
         success: true,
         message: `${player.name} → ${targetDesc} (${result.reason})`
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auto-placement error:', error);
-      return { success: false, message: 'Placement failed' };
+      const errorMsg = error?.message || 'unexpected error';
+      return { success: false, message: `Placement failed: ${errorMsg}` };
     }
   };
 

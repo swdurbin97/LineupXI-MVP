@@ -789,12 +789,22 @@ function LineupPageContent() {
                             e.dataTransfer.setDragImage(e.currentTarget as HTMLElement, rect.width * 0.2, rect.height * 0.2);
                           }}
                           onDoubleClick={() => {
-                            if (!currentTeam) return;
+                            console.log('Double-click triggered:', p.id, p.name, p.primaryPos);
 
-                            const playerLookup = (id: string) =>
-                              currentTeam.players.find(player => player.id === id);
+                            if (!currentTeam) {
+                              console.warn('No current team selected');
+                              toast('No team selected', 'error');
+                              return;
+                            }
+
+                            const playerLookup = (id: string) => {
+                              const found = currentTeam.players.find(player => player.id === id);
+                              console.log('Player lookup:', id, found ? `${found.name} (${found.primaryPos})` : 'not found');
+                              return found;
+                            };
 
                             const result = autoPlacePlayer(p.id, playerLookup);
+                            console.log('Auto-placement result:', result);
 
                             if (result.success) {
                               toastWithUndo(result.message, undoLastPlacement, 'success');
