@@ -429,14 +429,14 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'MOVE_TO_BENCH', index, playerId, fromSlotId });
   };
 
-  const autoPlacePlayer = (playerId: string, playerLookupFn: (id: string) => any): { success: boolean; message: string } => {
+  const autoPlacePlayer = (
+    playerId: string,
+    playerLookupFn: (id: string) => any,
+    opts?: { formation?: any }
+  ): { success: boolean; message: string } => {
     try {
       if (!state.working) {
         return { success: false, message: 'No active lineup' };
-      }
-
-      if (!formationsSeedRef.current) {
-        return { success: false, message: 'Formation data not loaded' };
       }
 
       // Get player data from lookup function
@@ -445,16 +445,29 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `Player not found (${playerId})` };
       }
 
-      // Resolve formation using the robust resolver
-      const formationSource = formationsSeedRef.current;
-      const activeCode = state.working.formationCode;
-      const formationData = resolveFormation(formationSource, activeCode);
+      // Use exact formation object if provided (bypass resolver)
+      const formationFromCaller = opts?.formation;
+      let formationData: any;
+
+      if (formationFromCaller && (formationFromCaller.slot_map?.length || formationFromCaller.slots?.length)) {
+        formationData = formationFromCaller;
+      } else {
+        // Fallback to resolver
+        if (!formationsSeedRef.current) {
+          return { success: false, message: 'Formation data not loaded' };
+        }
+        const formationSource = formationsSeedRef.current;
+        const activeCode = state.working.formationCode;
+        formationData = resolveFormation(formationSource, activeCode);
+      }
 
       if (!formationData || (!formationData.slot_map?.length && !formationData.slots?.length)) {
+        const formationSource = formationsSeedRef.current;
+        const activeCode = state.working.formationCode;
         const collectionType = Object.prototype.toString.call(
           formationSource && ('current' in (formationSource as any) ? (formationSource as any).current : formationSource)
         );
-        return { success: false, message: `Formation not found (${String(activeCode)}); formations collection type=${collectionType}` };
+        return { success: false, message: `Formation not found for auto-place; formation override missing/invalid. activeCode=${String(activeCode)} collection=${collectionType}` };
       }
 
       // Build formation slots array from formation data (support both slot_map and slots)

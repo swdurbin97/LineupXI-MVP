@@ -792,7 +792,16 @@ function LineupPageContent() {
                           onDoubleClick={() => {
                             // Guard: always pass string id, not event or player object
                             const playerId = String(p.id);
-                            console.log('Double-click triggered:', playerId, p.name, p.primaryPos);
+
+                            // Get the currently rendered formation (same one used to draw slots)
+                            const currentFormationObj = formations.find(f => f.code === working.formationCode);
+
+                            console.log('dblclick', {
+                              id: playerId,
+                              pos: p.primaryPos,
+                              formationCode: currentFormationObj?.code,
+                              slotCount: currentFormationObj?.slot_map?.length
+                            });
 
                             if (!currentTeam) {
                               console.warn('No current team selected');
@@ -803,13 +812,13 @@ function LineupPageContent() {
                             // Safe player lookup using collection helper
                             const makePlayerLookup = (rosterLike: any) => (id: string) => {
                               const found = findIn(rosterLike, (player: any) => player?.id === id);
-                              const collectionType = Object.prototype.toString.call(rosterLike);
-                              console.log('Player lookup:', id, found ? `${found.name} (${found.primaryPos})` : `not found; collection type=${collectionType}`);
                               return found;
                             };
 
                             const playerLookup = makePlayerLookup(currentTeam.players);
-                            const result = autoPlacePlayer(playerId, playerLookup);
+
+                            // Pass the live formation object directly (bypass resolver)
+                            const result = autoPlacePlayer(playerId, playerLookup, { formation: currentFormationObj });
                             console.log('Auto-placement result:', result);
 
                             if (result.success) {
