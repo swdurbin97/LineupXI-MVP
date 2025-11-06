@@ -718,37 +718,38 @@ function LineupPageContent() {
                       const renderY = ((PITCH_H - baseY) / PITCH_H) * 100; // Flip Y
 
                       return (
-                        <SlotMarker
-                          key={slot.slot_id}
-                          slotId={slot.slot_id}
-                          slotCode={slot.slot_code}
-                          x={renderX}
-                          y={renderY}
-                          player={player}
-                          isSelected={selectedSlotCode === slot.slot_code}
-                          tunerOn={positionsEditor}
-                          scale={scale}
-                          onNudge={positionsEditor ? handleNudge : undefined}
-                          onSelect={positionsEditor ? setSelectedSlotCode : undefined}
-                          onClick={() => {
-                            if (selectedPlayerId) {
-                              // If a bench player is selected, place them here
-                              const benchSlots = working.benchSlots ?? [];
-                              if (benchSlots.includes(selectedPlayerId)) {
-                                placePlayer(slot.slot_id, selectedPlayerId);
-                                setSelectedPlayerId(null);
+                        <div key={slot.slot_id} className="relative" data-slot-id={slot.slot_id}>
+                          <SlotMarker
+                            slotId={slot.slot_id}
+                            slotCode={slot.slot_code}
+                            x={renderX}
+                            y={renderY}
+                            player={player}
+                            isSelected={selectedSlotCode === slot.slot_code}
+                            tunerOn={positionsEditor}
+                            scale={scale}
+                            onNudge={positionsEditor ? handleNudge : undefined}
+                            onSelect={positionsEditor ? setSelectedSlotCode : undefined}
+                            onClick={() => {
+                              if (selectedPlayerId) {
+                                // If a bench player is selected, place them here
+                                const benchSlots = working.benchSlots ?? [];
+                                if (benchSlots.includes(selectedPlayerId)) {
+                                  placePlayer(slot.slot_id, selectedPlayerId);
+                                  setSelectedPlayerId(null);
+                                }
+                              } else if (playerId) {
+                                // If slot has a player, remove them to bench
+                                removeFromSlot(slot.slot_id);
                               }
-                            } else if (playerId) {
-                              // If slot has a player, remove them to bench
-                              removeFromSlot(slot.slot_id);
-                            }
-                          }}
-                          onDrop={!editMode ? (draggedPlayerId) => {
-                            // Handle drop - place player in this slot using slot_id
-                            placePlayer(slot.slot_id, draggedPlayerId);
-                            setSelectedPlayerId(null);
-                          } : undefined}
-                        />
+                            }}
+                            onDrop={!editMode ? (draggedPlayerId) => {
+                              // Handle drop - place player in this slot using slot_id
+                              placePlayer(slot.slot_id, draggedPlayerId);
+                              setSelectedPlayerId(null);
+                            } : undefined}
+                          />
+                        </div>
                       );
                     });
                   })()}

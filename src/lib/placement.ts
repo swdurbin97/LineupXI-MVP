@@ -1,6 +1,7 @@
 import { getCompatibilityScore } from '../data/position-relations';
 import type { PositionCode } from '../data/positions';
 import type { Player } from './types';
+import { getNormalizedSlots, type NormSlot } from './slots';
 
 export { getCompatibilityScore };
 

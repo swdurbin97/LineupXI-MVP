@@ -471,10 +471,11 @@ export function LineupsProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Build formation slots array from formation data (support both slot_map and slots)
+      // CRITICAL: Use the slot_id from the data, don't create synthetic ones
       const slotSource = formationData.slot_map || formationData.slots || [];
       const formationSlots = slotSource.map((slot: any, idx: number) => ({
-        slot_id: `${formationData.code}:${slot.slot_code}:${idx}`,
-        slot_code: slot.slot_code,
+        slot_id: slot.slot_id || slot.id || `${formationData.code}:${slot.slot_code}:${idx}`,
+        slot_code: slot.slot_code || slot.pos || slot.position,
         x: slot.x,
         y: slot.y
       }));

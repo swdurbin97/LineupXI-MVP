@@ -160,7 +160,7 @@ describe('Position Compatibility System', () => {
       const result = findBestSlotForPlayer(player, slots, {}, []);
 
       expect(result.target.type).toBe('bench');
-      expect(result.reason).toBe('bench fallback');
+      expect(result.reason).toBe('no compatible slots (GK rule)');
     });
 
     it('allows GK player into GK slot', () => {
@@ -195,7 +195,7 @@ describe('Position Compatibility System', () => {
 
       expect(result.target.type).toBe('bench');
       expect(result.target.benchIndex).toBe(0);
-      expect(result.reason).toBe('bench fallback');
+      expect(result.reason).toBe('bench fallback (score=0)');
     });
 
     it('finds first open bench slot', () => {
@@ -250,6 +250,38 @@ describe('Position Compatibility System', () => {
 
       expect(result1).toEqual(result2);
       expect(result2).toEqual(result3);
+    });
+
+    it('places CDM player into 3-5-2 formation with two CDM slots', () => {
+      const player = createPlayer('p1', 'CDM' as PositionCode);
+      // Simulate 3-5-2 formation with real slot IDs like in the data
+      const slots = [
+        createSlot('352:GK:0', 'GK' as PositionCode, 8, 34),
+        createSlot('352:CB:0', 'CB' as PositionCode, 22, 20),
+        createSlot('352:CB:1', 'CB' as PositionCode, 22, 34),
+        createSlot('352:CB:2', 'CB' as PositionCode, 22, 48),
+        createSlot('352:CDM:0', 'CDM' as PositionCode, 42, 24),
+        createSlot('352:CDM:1', 'CDM' as PositionCode, 42, 44),
+        createSlot('352:RM:0', 'RM' as PositionCode, 52, 10),
+        createSlot('352:LM:0', 'LM' as PositionCode, 52, 58),
+        createSlot('352:CAM:0', 'CAM' as PositionCode, 62, 34),
+        createSlot('352:ST:0', 'ST' as PositionCode, 82, 26),
+        createSlot('352:ST:1', 'ST' as PositionCode, 82, 42),
+      ];
+
+      const result = findBestSlotForPlayer(player, slots, {}, []);
+
+      expect(result.target.type).toBe('field');
+      if (result.target.type === 'field') {
+        // Should match one of the real CDM slot IDs
+        expect(['352:CDM:0', '352:CDM:1']).toContain(result.target.slotId);
+      }
+      expect(result.reason).toBe('exact primary');
+
+      // Verify the returned slot ID is real and in the formation
+      const foundSlot = slots.find(s => s.slot_id === (result.target as any).slotId);
+      expect(foundSlot).toBeDefined();
+      expect(foundSlot?.slot_code).toBe('CDM');
     });
   });
 });
