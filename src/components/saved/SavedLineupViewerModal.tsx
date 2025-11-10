@@ -126,12 +126,15 @@ export default function SavedLineupViewerModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg shadow-xl mx-6"
+        style={{
+          maxWidth: 'min(1200px, calc(100vw - 48px))',
+          maxHeight: 'calc(100vh - 96px)',
+          overflow: 'hidden'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="max-h-[calc(100vh-96px)] overflow-auto">
-          <ScaledPage baseWidth={1280} baseHeight={720}>
-            <div className="p-6">
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 96px)' }}>
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold">{lineup.name}</h2>
@@ -150,8 +153,8 @@ export default function SavedLineupViewerModal({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(640px,1fr)_minmax(320px,420px)] gap-8">
-            <div ref={containerRef} className="relative w-full aspect-[105/68] rounded-md border border-slate-200 bg-white overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-4 items-start">
+            <div ref={containerRef} className="relative w-full lg:flex-1 rounded-md border border-slate-200 bg-white overflow-hidden" style={{ aspectRatio: '105 / 68' }}>
               {loading ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-slate-400">Loading formation...</span>
@@ -172,7 +175,7 @@ export default function SavedLineupViewerModal({
               )}
             </div>
 
-            <div className="max-w-[420px] leading-snug space-y-3">
+            <div className="w-full lg:w-80 lg:flex-shrink-0 leading-snug space-y-3">
               <div>
                 <h3 className="text-lg font-bold mb-3 text-slate-700">Starting XI</h3>
                 <div className="space-y-3">
@@ -238,8 +241,6 @@ export default function SavedLineupViewerModal({
               Close
             </button>
           </div>
-            </div>
-          </ScaledPage>
         </div>
       </div>
     </div>
