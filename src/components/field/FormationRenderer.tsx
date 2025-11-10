@@ -1,6 +1,5 @@
 import React from 'react';
 import pitchSvg from '../../assets/pitch.svg';
-import { xyPercent } from '../../lib/coords';
 
 interface FormationSlot {
   slot_id: string;
@@ -46,39 +45,55 @@ export default function FormationRenderer({
     );
   }
 
+  // Canonical pitch dimensions (from formations.json)
+  const PITCH_W = 105;
+  const PITCH_H = 68;
+
+  // Calculate aspect-ratio preserving container
+  const aspectRatio = PITCH_W / PITCH_H;
+  const containerWidth = Math.floor(targetHeight * aspectRatio);
+
   return (
-    <div
-      className={`relative w-full ${className}`}
-      style={{ aspectRatio: '105 / 68' }}
-    >
-      <div className="absolute inset-0">
-        {/* 1) Green gradient background */}
-        <div className="absolute inset-0" style={{
-          background: 'linear-gradient(180deg, #198754 0%, #0f5132 100%)'
-        }} />
+    <div className={`relative w-full rounded-lg border overflow-hidden ${className}`}
+         style={{ height: targetHeight }}>
+      <div className="relative w-full h-full">
+        {/* Aspect-ratio box centered horizontally */}
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-0"
+          style={{
+            height: targetHeight,
+            width: containerWidth
+          }}
+        >
+          {/* 1) Green gradient background */}
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(180deg, #198754 0%, #0f5132 100%)'
+          }} />
 
-        {/* 2) Pitch lines overlay */}
-        <img
-          src={pitchSvg}
-          className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-          alt="Football pitch"
-        />
+          {/* 2) Pitch lines overlay */}
+          <img
+            src={pitchSvg}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            alt="Football pitch"
+          />
 
-        {/* 3) Formation markers */}
-        {formation.slot_map.map((slot) => {
-          // Use xyPercent() for consistent coordinate handling
-          const { leftPct, topPct } = xyPercent(slot);
+          {/* 3) Formation markers */}
+          {formation.slot_map.map((slot) => {
+            // Canonical data: absolute 105×68, bottom-left origin
+            // Render: percentage 0-100, top-left origin
+            const renderX = (slot.x / PITCH_W) * 100;
+            const renderY = ((PITCH_H - slot.y) / PITCH_H) * 100; // Flip Y
 
-          return (
-            <div
-              key={slot.slot_id}
-              className={`absolute ${interactive ? 'cursor-pointer hover:scale-110' : ''} transition-transform`}
-              style={{
-                left: `${leftPct}%`,
-                top: `${topPct}%`,
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
+            return (
+              <div
+                key={slot.slot_id}
+                className={`absolute ${interactive ? 'cursor-pointer hover:scale-110' : ''} transition-transform`}
+                style={{
+                  left: `${renderX}%`,
+                  top: `${renderY}%`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
                 {/* Marker circle */}
                 <div
                   className={`
@@ -101,9 +116,10 @@ export default function FormationRenderer({
                     </span>
                   )}
                 </div>
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
