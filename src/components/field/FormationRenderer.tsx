@@ -1,4 +1,3 @@
-@@ -0,0 +1,126 @@
 import React from 'react';
 import pitchSvg from '../../assets/pitch.svg';
 
